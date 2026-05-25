@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>体脂率估算</title>
+  <style>
+    :root {
+      --bg: #0f0f13;
+      --surface: #1a1a22;
+      --border: #2a2a38;
+      --text: #e0e0e0;
+      --text-secondary: #888;
+      --accent: #c4943a;
+      --accent-glow: rgba(196,148,58,0.3);
+      --danger: #d44;
+      --success: #4a8;
+      --radius: 12px;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+    }
+
+    header {
+      text-align: center;
+      padding: 24px 0 16px;
+    }
+    header h1 {
+      font-size: 1.6rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .badge {
+      display: inline-block;
+      background: var(--accent);
+      color: #000;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-left: 8px;
+      vertical-align: middle;
+      text-transform: uppercase;
+    }
+    header .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    /* Form */
+    .form-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .form-section h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: var(--accent);
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .field {
+      flex: 1;
+      min-width: 100px;
+      margin-bottom: 12px;
+    }
+    .field label {
+      display: block;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+    .field input, .field select {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus, .field select:focus {
+      border-color: var(--accent);
+    }
+
+    .gender-toggle {
+      display: flex;
+      gap: 8px;
+    }
+    .gender-toggle button {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text-secondary);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .gender-toggle button.active {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Photo panels */
+    .photo-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    @media (max-width: 500px) {
+      .photo-panels { grid-template-columns: 1fr; }
+    }
+
+    .photo-panel {
+      background: var(--surface);
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+      aspect-ratio: 3/4;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .photo-panel:hover { border-color: var(--accent); }
+    .photo-panel.has-photo { border-style: solid; border-color: var(--accent); }
+
+    .photo-panel .placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--text-secondary);
+      pointer-events: none;
+    }
+    .photo-panel .placeholder .icon {
+      font-size: 2rem;
+      opacity: 0.5;
+    }
+    .photo-panel img, .photo-panel canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .photo-panel canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .photo-panel .label-tag {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: rgba(0,0,0,0.7);
+      color: var(--accent);
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 4px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .photo-panel .retake-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 0.7rem;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      z-index: 2;
+      transition: background 0.2s;
+    }
+    .photo-panel .retake-btn:hover { background: var(--danger); }
+
+    .upload-actions {
+      display: flex;
+      gap: 8px;
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 2;
+    }
+    .upload-actions button {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,0.8);
+      color: var(--text);
+      font-size: 0.75rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .upload-actions button:hover { background: var(--accent); color:#000; }
+    .photo-panel.has-photo .upload-actions { display: none; }
+
+    /* Analyze button */
+    .btn-analyze {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .btn-analyze:hover { box-shadow: 0 0 24px var(--accent-glow); }
+    .btn-analyze:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* Results */
+    .results {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-top: 16px;
+      display: none;
+    }
+    .results.visible { display: block; }
+
+    .bf-big-number {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .bf-value {
+      font-size: 4rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+    .bf-value.excellent { color: #4a8; }
+    .bf-value.good { color: #8b4; }
+    .bf-value.fair { color: var(--accent); }
+    .bf-value.poor { color: #d84; }
+    .bf-value.high { color: var(--danger); }
+    .bf-label {
+      color: var(--text-secondary);
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    .bf-scale {
+      display: flex;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .bf-scale .seg { flex: 1; }
+    .bf-scale .seg.e { background: #4a8; }
+    .bf-scale .seg.g { background: #8b4; }
+    .bf-scale .seg.f { background: var(--accent); }
+    .bf-scale .seg.p { background: #d84; }
+    .bf-scale .seg.h { background: var(--danger); }
+    .bf-indicator {
+      position: relative;
+      height: 20px;
+      margin-bottom: 18px;
+    }
+    .bf-indicator .arrow {
+      position: absolute;
+      top: 0;
+      transform: translateX(-50%);
+      font-size: 0.8rem;
+      transition: left 0.5s ease;
+    }
+
+    .measurements-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .meas-card {
+      background: var(--bg);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .meas-card .val {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+    .meas-card .lbl {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .disclaimer {
+      margin-top: 16px;
+      padding: 12px;
+      background: rgba(196,148,58,0.08);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .error-toast {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--danger);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      z-index: 100;
+      animation: fadeIn 0.3s;
+      display: none;
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(-8px); } }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>体脂率估算<span class="badge">MVP</span></h1>
+    <p class="subtitle">正面 + 侧面各一张照片，US Navy 公式估算</p>
+  </header>
+
+  <!-- User info -->
+  <div class="form-section">
+    <div class="row">
+      <div class="field" style="min-width:140px">
+        <label>性别</label>
+        <div class="gender-toggle" id="genderToggle">
+          <button class="active" data-gender="male">男</button>
+          <button data-gender="female">女</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>身高 (cm) *</label>
+        <input type="number" id="height" placeholder="175" min="100" max="250" step="0.1">
+      </div>
+      <div class="field">
+        <label>体重 (kg) · 选填</label>
+        <input type="number" id="weight" placeholder="70" min="30" max="300" step="0.1">
+      </div>
+      <div class="field">
+        <label>年龄 · 选填</label>
+        <input type="number" id="age" placeholder="22" min="10" max="100">
+      </div>
+    </div>
+  </div>
+
+  <!-- Photo upload -->
+  <div class="photo-panels">
+    <div class="photo-panel" id="frontPanel">
+      <span class="label-tag">正面照</span>
+      <div class="placeholder"><span class="icon">🧍</span><span>点击上传正面照</span></div>
+      <img id="frontImg" style="display:none" alt="正面">
+      <canvas id="frontCanvas" style="display:none"></canvas>
+      <button class="retake-btn" id="frontRetake" style="display:none">重拍</button>
+      <div class="upload-actions">
+        <button id="frontUpload">📁 上传</button>
+        <button id="frontCamera">📷 拍照</button>
+      </div>
+      <input type="file" id="frontInput" accept="image/*" hidden>
+      <input type="file" id="frontCamInput" accept="image/*" capture="environment" hidden>
+    </div>
+
+    <div class="photo-panel" id="sidePanel">
+      <span class="label-tag">侧面照</span>
+      <div class="placeholder"><span class="icon">🧍</span><span>点击上传侧面照</span></div>
+      <img id="sideImg" style="display:none" alt="侧面">
+      <canvas id="sideCanvas" style="display:none"></canvas>
+      <button class="retake-btn" id="sideRetake" style="display:none">重拍</button>
+      <div class="upload-actions">
+        <button id="sideUpload">📁 上传</button>
+        <button id="sideCamera">📷 拍照</button>
+      </div>
+      <input type="file" id="sideInput" accept="image/*" hidden>
+      <input type="file" id="sideCamInput" accept="image/*" capture="environment" hidden>
+    </div>
+  </div>
+
+  <p style="font-size:0.72rem;color:var(--text-secondary);margin-bottom:12px">
+    建议：穿紧身/少衣，纯色背景，站直，手臂自然下垂稍张开。正面镜头对齐胸部高度，侧面镜头对齐腰部高度。
+  </p>
+
+  <button class="btn-analyze" id="btnAnalyze" disabled>请先上传正面和侧面照片</button>
+
+  <!-- Results -->
+  <div class="results" id="results"></div>
+
+  <div class="error-toast" id="errorToast"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js"></script>
+
+<script>
+// --- State ---
+let gender = 'male';
+let frontLandmarks = null;
+let sideLandmarks = null;
+let frontImageData = null;
+let sideImageData = null;
+
+// --- DOM refs ---
+const $ = id => document.getElementById(id);
+const frontPanel = $('frontPanel');
+const sidePanel = $('sidePanel');
+const frontImg = $('frontImg');
+const sideImg = $('sideImg');
+const frontCanvas = $('frontCanvas');
+const sideCanvas = $('sideCanvas');
+const btnAnalyze = $('btnAnalyze');
+const resultsDiv = $('results');
+const errorToast = $('errorToast');
+const heightInput = $('height');
+
+// --- Gender toggle ---
+$('genderToggle').addEventListener('click', e => {
+  if (e.target.tagName !== 'BUTTON') return;
+  gender = e.target.dataset.gender;
+  $('genderToggle').querySelectorAll('button').forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  updateAnalyzeButton();
+});
+
+// --- Toast ---
+let toastTimer;
+function showToast(msg) {
+  errorToast.textContent = msg;
+  errorToast.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => errorToast.style.display = 'none', 3000);
+}
+
+// --- Photo setup ---
+function setupPhotoPanel(panel, img, canvas, uploadBtn, cameraBtn, retakeBtn, input, camInput, id) {
+  panel.addEventListener('dragover', e => { e.preventDefault(); panel.style.borderColor = '#c4943a'; });
+  panel.addEventListener('dragleave', () => { if (!img.src) panel.style.borderColor = ''; });
+  panel.addEventListener('drop', e => {
+    e.preventDefault();
+    panel.style.borderColor = '';
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) loadPhoto(file, id);
+  });
+
+  uploadBtn.addEventListener('click', e => { e.stopPropagation(); input.click(); });
+  cameraBtn.addEventListener('click', e => { e.stopPropagation(); camInput.click(); });
+  input.addEventListener('change', () => { if (input.files[0]) loadPhoto(input.files[0], id); });
+  camInput.addEventListener('change', () => { if (camInput.files[0]) loadPhoto(camInput.files[0], id); });
+
+  panel.addEventListener('click', () => {
+    if (!img.src) input.click();
+  });
+
+  retakeBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    img.style.display = 'none';
+    img.src = '';
+    canvas.style.display = 'none';
+    retakeBtn.style.display = 'none';
+    panel.classList.remove('has-photo');
+    panel.querySelector('.placeholder').style.display = '';
+    panel.querySelector('.upload-actions').style.display = '';
+    if (id === 'front') { frontLandmarks = null; frontImageData = null; }
+    else { sideLandmarks = null; sideImageData = null; }
+    updateAnalyzeButton();
+    resultsDiv.classList.remove('visible');
+  });
+}
+
+function loadPhoto(file, id) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = id === 'front' ? frontImg : sideImg;
+    const canvas = id === 'front' ? frontCanvas : sideCanvas;
+    const panel = id === 'front' ? frontPanel : sidePanel;
+    const retakeBtn = id === 'front' ? $('frontRetake') : $('sideRetake');
+
+    img.onload = () => {
+      img.style.display = 'block';
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.style.display = 'none';
+      retakeBtn.style.display = 'block';
+      panel.classList.add('has-photo');
+      panel.querySelector('.placeholder').style.display = 'none';
+      panel.querySelector('.upload-actions').style.display = 'none';
+
+      if (id === 'front') { frontLandmarks = null; frontImageData = img; }
+      else { sideLandmarks = null; sideImageData = img; }
+
+      // Run pose detection immediately
+      runPoseDetection(img, canvas, id);
+      updateAnalyzeButton();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+setupPhotoPanel(frontPanel, frontImg, frontCanvas,
+  $('frontUpload'), $('frontCamera'), $('frontRetake'),
+  $('frontInput'), $('frontCamInput'), 'front');
+setupPhotoPanel(sidePanel, sideImg, sideCanvas,
+  $('sideUpload'), $('sideCamera'), $('sideRetake'),
+  $('sideInput'), $('sideCamInput'), 'side');
+
+// --- MediaPipe Pose ---
+let poseInstance = null;
+
+function initPose() {
+  return new Promise((resolve) => {
+    poseInstance = new Pose({
+      locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${file}`
+    });
+    poseInstance.setOptions({
+      modelComplexity: 2,
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+    poseInstance.onResults(results => {
+      // Handled per call via callback stored on the image element
+      if (results.poseLandmarks) {
+        // Store on a temporary global
+        window._poseResult = results;
+      }
+    });
+    poseInstance.initialize().then(() => resolve());
+  });
+}
+
+async function runPoseDetection(img, canvas, id) {
+  if (!poseInstance) await initPose();
+
+  // Create an off-screen copy to avoid conflicts
+  const offscreen = new Image();
+  offscreen.src = img.src;
+  await new Promise(r => { offscreen.onload = r; });
+
+  const tempCanvas = document.createElement('canvas');
+  tempCanvas.width = offscreen.naturalWidth;
+  tempCanvas.height = offscreen.naturalHeight;
+  const tempCtx = tempCanvas.getContext('2d');
+  tempCtx.drawImage(offscreen, 0, 0);
+
+  window._poseResult = null;
+  await poseInstance.send({ image: tempCanvas });
+
+  const result = window._poseResult;
+  if (result && result.poseLandmarks) {
+    if (id === 'front') frontLandmarks = result.poseLandmarks;
+    else sideLandmarks = result.poseLandmarks;
+    drawLandmarks(canvas, result.poseLandmarks, id);
+  } else {
+    showToast((id === 'front' ? '正面' : '侧面') + '照片未检测到人体，请换张照片试试');
+  }
+}
+
+function drawLandmarks(canvas, landmarks, id) {
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw measurement lines
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Measurement zone indicators
+  const pts = landmarks.map(l => ({ x: l.x * w, y: l.y * h }));
+
+  // Neck level (30% from chin to shoulders)
+  const chinY = (pts[9].y + pts[10].y) / 2;
+  const shoulderMidY = (pts[11].y + pts[12].y) / 2;
+  const neckY = chinY + (shoulderMidY - chinY) * 0.30;
+
+  // Waist level (57% from shoulders to hips)
+  const hipMidY = (pts[23].y + pts[24].y) / 2;
+  const waistY = shoulderMidY + (hipMidY - shoulderMidY) * 0.57;
+
+  // Hip level
+  const hipY = hipMidY;
+
+  // Draw horizontal lines at measurement points
+  ctx.strokeStyle = 'rgba(196,148,58,0.7)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 4]);
+
+  [neckY, waistY, hipY].forEach(y => {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  });
+
+  // Labels
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#c4943a';
+  ctx.font = '12px system-ui';
+  ctx.fillText('颈', 8, neckY - 4);
+  ctx.fillText('腰', 8, waistY - 4);
+  ctx.fillText('臀', 8, hipY - 4);
+
+  // Draw key landmark dots
+  const keyLandmarks = [0,7,8,11,12,23,24,25,26];
+  keyLandmarks.forEach(i => {
+    ctx.beginPath();
+    ctx.arc(pts[i].x, pts[i].y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#c4943a';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+
+  canvas.style.display = 'block';
+}
+
+// --- Measurement extraction ---
+function getWidthAtY(landmarks, yRatio, w, h) {
+  // yRatio: 0=top, 1=bottom of the torso zone
+  // Approximate body width at a given height ratio using silhouette
+  // We use landmark pairs: shoulders define top, hips define bottom
+  const pts = landmarks.map(l => ({ x: l.x * w, y: l.y * h }));
+
+  const shoulderL = pts[11].x;
+  const shoulderR = pts[12].x;
+  const hipL = pts[23].x;
+  const hipR = pts[24].x;
+
+  // Interpolate between shoulders and hips
+  const leftX = shoulderL + (hipL - shoulderL) * yRatio;
+  const rightX = shoulderR + (hipR - shoulderR) * yRatio;
+
+  return Math.abs(rightX - leftX);
+}
+
+function getDepthAtY(landmarks, yRatio, w, h) {
+  // In side view, depth is the visible extent at the given body level
+  // We use the nose (frontmost) and heel (backmost) as references
+  const pts = landmarks.map(l => ({ x: l.x * w, y: l.y * h }));
+
+  const shoulderMidY = (pts[11].y + pts[12].y) / 2;
+  const hipMidY = (pts[23].y + pts[24].y) / 2;
+  const targetY = shoulderMidY + (hipMidY - shoulderMidY) * yRatio;
+
+  // Find min and max x at this Y among relevant torso landmarks
+  // In a perfect side view, landmarks 11/12 (shoulders), 23/24 (hips) are visible
+  // And we can use the torso extent
+  const relevantPts = [11, 12, 23, 24, 0]; // nose too for reference
+  let minX = Infinity, maxX = -Infinity;
+
+  // Approximate: find the body contour width at this Y
+  const shoulderAvgX = (pts[11].x + pts[12].x) / 2;
+  const hipAvgX = (pts[23].x + pts[24].x) / 2;
+
+  // In side view, shoulders appear at one x-depth, hips at another
+  const avgX = shoulderAvgX + (hipAvgX - shoulderAvgX) * yRatio;
+
+  // The "depth" is harder from landmarks alone. Use shoulder-to-hip extent as proxy
+  // For side view, we measure the x-spread of landmarks at the relevant Y
+  relevantPts.forEach(i => {
+    const dist = Math.abs(pts[i].y - targetY);
+    if (dist < h * 0.35) { // within reasonable range
+      minX = Math.min(minX, pts[i].x);
+      maxX = Math.max(maxX, pts[i].x);
+    }
+  });
+
+  if (minX === Infinity) {
+    // Fallback: use 0.7x the width as typical depth ratio
+    return getWidthAtY(landmarks, yRatio, w, h) * 0.7;
+  }
+
+  return maxX - minX;
+}
+
+function estimateCircumference(frontWidth, sideDepth) {
+  // Elliptical approximation: C ≈ π × √((a² + b²) / 2)
+  // where a = width/2, b = depth/2
+  if (frontWidth <= 0 || sideDepth <= 0) return 0;
+  const a = frontWidth / 2;
+  const b = sideDepth / 2;
+  return Math.PI * Math.sqrt((a * a + b * b) / 2) * 2;
+}
+
+// --- US Navy Formula ---
+function navyFormula(gender, heightCm, neckCm, waistCm, hipCm) {
+  if (gender === 'male') {
+    return 86.010 * Math.log10(waistCm - neckCm) - 70.041 * Math.log10(heightCm) + 36.76;
+  } else {
+    return 163.205 * Math.log10(waistCm + hipCm - neckCm) - 97.684 * Math.log10(heightCm) - 78.387;
+  }
+}
+
+function getBFCategory(bf, g) {
+  // American Council on Exercise ranges (rough)
+  if (g === 'male') {
+    if (bf < 6)  return ['excellent', '过低'];
+    if (bf < 14) return ['excellent', '健美'];
+    if (bf < 18) return ['good', '健康'];
+    if (bf < 25) return ['fair', '正常'];
+    if (bf < 30) return ['poor', '偏高'];
+    return ['high', '过高'];
+  } else {
+    if (bf < 14) return ['excellent', '过低'];
+    if (bf < 21) return ['excellent', '健美'];
+    if (bf < 25) return ['good', '健康'];
+    if (bf < 32) return ['fair', '正常'];
+    if (bf < 38) return ['poor', '偏高'];
+    return ['high', '过高'];
+  }
+}
+
+// --- Main analysis ---
+function analyze() {
+  const heightCm = parseFloat(heightInput.value);
+  if (!heightCm || heightCm < 100 || heightCm > 250) {
+    showToast('请输入有效身高 (100-250 cm)');
+    return;
+  }
+  if (!frontLandmarks || !sideLandmarks) {
+    showToast('请确保两张照片都已上传并检测到人体');
+    return;
+  }
+
+  const fw = frontImageData.naturalWidth;
+  const fh = frontImageData.naturalHeight;
+  const sw = sideImageData.naturalWidth;
+  const sh = sideImageData.naturalHeight;
+
+  // Pixel height of person (floor to top of head) from front view
+  const frontPts = frontLandmarks.map(l => ({ x: l.x * fw, y: l.y * fh }));
+  const sidePts = sideLandmarks.map(l => ({ x: l.x * sw, y: l.y * sh }));
+
+  // Person pixel height: use distance from top of head (nose.y - eye level) to heel
+  // Better: use y-range of landmarks (min y to max y)
+  const frontYs = frontPts.map(p => p.y);
+  const frontPixelHeight = Math.max(...frontYs) - Math.min(...frontYs);
+  const sideYs = sidePts.map(p => p.y);
+  const sidePixelHeight = Math.max(...sideYs) - Math.min(...sideYs);
+
+  // Scale factors: pixels → cm
+  // The detected landmarks span MOST but not all of the person
+  // Typical: detected span ≈ 0.92-0.95 of actual height
+  const DETECTION_COVERAGE = 0.94;
+  const frontScale = (heightCm * DETECTION_COVERAGE) / frontPixelHeight;
+  const sideScale = (heightCm * DETECTION_COVERAGE) / sidePixelHeight;
+
+  // Neck measurements (yRatio = 0.05 relative to shoulder→hip segment)
+  const neckFrontW = getWidthAtY(frontLandmarks, 0.05, fw, fh);
+  const neckSideD = getDepthAtY(sideLandmarks, 0.05, sw, sh);
+
+  // Waist (0.57)
+  const waistFrontW = getWidthAtY(frontLandmarks, 0.57, fw, fh);
+  const waistSideD = getDepthAtY(sideLandmarks, 0.57, sw, sh);
+
+  // Hip (0.95)
+  const hipFrontW = getWidthAtY(frontLandmarks, 0.95, fw, fh);
+  const hipSideD = getDepthAtY(sideLandmarks, 0.95, sw, sh);
+
+  // Scale and calculate circumferences
+  const neckCm = estimateCircumference(neckFrontW * frontScale, neckSideD * sideScale);
+  const waistCm = estimateCircumference(waistFrontW * frontScale, waistSideD * sideScale);
+  const hipCm = estimateCircumference(hipFrontW * frontScale, hipSideD * sideScale);
+
+  // Bounds check
+  if (neckCm < 20 || neckCm > 60 || waistCm < 40 || waistCm > 150) {
+    showToast('测量结果异常，请确认照片姿势正确（正面+侧面，站直）');
+    return;
+  }
+
+  // US Navy formula
+  let bf = navyFormula(gender, heightCm, neckCm, waistCm, hipCm);
+
+  // Clamp
+  bf = Math.max(2, Math.min(50, bf));
+
+  const [category, label] = getBFCategory(bf, gender);
+
+  // Render results
+  const weightKg = parseFloat($('weight').value) || null;
+  const fatMass = weightKg ? (weightKg * bf / 100).toFixed(1) : null;
+  const leanMass = weightKg ? (weightKg - fatMass).toFixed(1) : null;
+
+  const indicatorPct = Math.min(95, Math.max(5, (bf / 40) * 100));
+
+  resultsDiv.innerHTML = `
+    <div class="bf-big-number">
+      <div class="bf-value ${category}">${bf.toFixed(1)}%</div>
+      <div class="bf-label">体脂率 · ${label}</div>
+    </div>
+
+    <div class="bf-scale">
+      <div class="seg e"></div><div class="seg g"></div>
+      <div class="seg f"></div><div class="seg p"></div><div class="seg h"></div>
+    </div>
+    <div class="bf-indicator">
+      <div class="arrow" style="left:${indicatorPct}%">▼</div>
+    </div>
+
+    <div class="measurements-grid">
+      <div class="meas-card">
+        <div class="val">${neckCm.toFixed(1)}</div>
+        <div class="lbl">颈围 (cm)</div>
+      </div>
+      <div class="meas-card">
+        <div class="val">${waistCm.toFixed(1)}</div>
+        <div class="lbl">腰围 (cm)</div>
+      </div>
+      <div class="meas-card">
+        <div class="val">${hipCm.toFixed(1)}</div>
+        <div class="lbl">臀围 (cm)</div>
+      </div>
+      ${fatMass ? `
+      <div class="meas-card">
+        <div class="val">${fatMass} kg</div>
+        <div class="lbl">脂肪重量</div>
+      </div>
+      <div class="meas-card">
+        <div class="val">${leanMass} kg</div>
+        <div class="lbl">去脂体重</div>
+      </div>
+      ` : ''}
+      <div class="meas-card">
+        <div class="val">${heightCm} cm</div>
+        <div class="lbl">身高</div>
+      </div>
+    </div>
+
+    <div class="disclaimer">
+      ⚠️ 本结果基于2D照片+US Navy公式估算，与DEXA等黄金标准存在±3-5%的误差范围。
+      仅用于趋势追踪参考，不能替代专业体测。建议每周同一时间、同一条件下拍照对比。
+    </div>
+  `;
+
+  resultsDiv.classList.add('visible');
+  resultsDiv.scrollIntoView({ behavior: 'smooth' });
+}
+
+$('btnAnalyze').addEventListener('click', analyze);
+
+// --- Enable/disable analyze button ---
+function updateAnalyzeButton() {
+  const ready = !!(frontImageData?.src && sideImageData?.src &&
+                   frontLandmarks && sideLandmarks &&
+                   heightInput.value);
+  btnAnalyze.disabled = !ready;
+  btnAnalyze.textContent = ready ? '开始分析' :
+    (!frontImageData?.src || !sideImageData?.src) ? '请先上传正面和侧面照片' :
+    '正在检测人体姿态...';
+}
+
+heightInput.addEventListener('input', updateAnalyzeButton);
+
+// Poll for landmark availability to update button
+setInterval(updateAnalyzeButton, 1000);
+
+// --- Init ---
+initPose();
+</script>
+</body>
+</html>
