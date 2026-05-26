@@ -235,22 +235,21 @@
 
   <!-- Auth UI -->
   <div class="auth-section" id="authSection">
-    <h3 id="authTitle">登录</h3>
+    <h3>登录或注册</h3>
     <div class="field">
       <label>邮箱</label>
       <input type="email" id="authEmail" placeholder="your@email.com">
     </div>
     <div class="field">
-      <label>密码</label>
+      <label>密码（至少6位）</label>
       <input type="password" id="authPassword" placeholder="至少6位">
     </div>
     <div class="auth-buttons">
-      <button class="btn-primary" id="authSubmit">登录</button>
+      <button class="btn-primary" id="authLogin">登录</button>
+      <button class="btn-secondary" id="authSignup">注册</button>
     </div>
     <div class="auth-error" id="authError"></div>
-    <div class="auth-switch">
-      <span id="authSwitchText">没有账号？</span> <a id="authSwitch">注册</a>
-    </div>
+  </div>
   </div>
 
   <!-- Main app (hidden until auth) -->
@@ -377,18 +376,11 @@ function showToast(msg) {
 }
 
 // --- Auth ---
-let authMode = 'login'; // 'login' | 'signup'
+// --- Auth ---
+$('authLogin').addEventListener('click', () => handleAuth('login'));
+$('authSignup').addEventListener('click', () => handleAuth('signup'));
 
-$('authSwitch').addEventListener('click', () => {
-  authMode = authMode === 'login' ? 'signup' : 'login';
-  $('authTitle').textContent = authMode === 'login' ? '登录' : '注册';
-  $('authSubmit').textContent = authMode === 'login' ? '登录' : '注册';
-  $('authSwitchText').textContent = authMode === 'login' ? '没有账号？' : '已有账号？';
-  $('authSwitch').textContent = authMode === 'login' ? '注册' : '登录';
-  $('authError').style.display = 'none';
-});
-
-$('authSubmit').addEventListener('click', async () => {
+async function handleAuth(mode) {
   const email = $('authEmail').value.trim();
   const password = $('authPassword').value;
   const errEl = $('authError');
@@ -405,29 +397,36 @@ $('authSubmit').addEventListener('click', async () => {
   }
 
   errEl.style.display = 'none';
-  $('authSubmit').disabled = true;
-  $('authSubmit').textContent = '处理中...';
+  const btn = mode === 'login' ? $('authLogin') : $('authSignup');
+  btn.disabled = true;
+  btn.textContent = '处理中...';
 
   let result;
-  if (authMode === 'signup') {
+  if (mode === 'signup') {
     result = await supabase.auth.signUp({ email, password });
   } else {
     result = await supabase.auth.signInWithPassword({ email, password });
   }
 
-  $('authSubmit').disabled = false;
-  $('authSubmit').textContent = authMode === 'login' ? '登录' : '注册';
+  btn.disabled = false;
+  btn.textContent = mode === 'login' ? '登录' : '注册';
 
   if (result.error) {
-    errEl.textContent = result.error.message;
+    if (result.error.message.includes('Invalid login') && mode === 'login') {
+      errEl.textContent = '账号不存在或密码错误';
+    } else {
+      errEl.textContent = result.error.message;
+    }
     errEl.style.display = 'block';
-  } else if (authMode === 'signup' && result.data.user && !result.data.session) {
-    // Email confirmation might be required
-    errEl.textContent = '注册成功！如需邮箱验证，请检查收件箱。';
+  } else if (mode === 'signup' && result.data.user && !result.data.session) {
+    errEl.textContent = '注册成功！请点击"登录"按钮登录';
     errEl.style.color = 'var(--success)';
     errEl.style.display = 'block';
+    $('authPassword').value = '';
   } else {
     onLogin(result.data.user);
+  }
+}
   }
 });
 
