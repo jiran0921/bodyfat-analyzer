@@ -331,9 +331,9 @@
   <div class="error-toast" id="errorToast"></div>
 </div>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://unpkg.com/chart.js@4/dist/chart.umd.min.js"></script>
-<script src="https://unpkg.com/@mediapipe/pose@0.5/pose.js"></script>
+<script src="lib/supabase.js"></script>
+<script src="lib/chart.umd.min.js"></script>
+<script src="lib/pose.js"></script>
 
 <script>
 // --- Supabase ---
@@ -534,7 +534,7 @@ let poseInstance = null;
 function initPose() {
   return new Promise((resolve) => {
     poseInstance = new Pose({
-      locateFile: file => `https://unpkg.com/@mediapipe/pose@0.5/${file}`
+      locateFile: file => `lib/${file}`
     });
     poseInstance.setOptions({
       modelComplexity: 2, smoothLandmarks: true, enableSegmentation: false,
